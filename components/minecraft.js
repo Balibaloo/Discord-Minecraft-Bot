@@ -25,15 +25,13 @@ module.exports = (globalVars) => {
     }
 
     this.startServer = () => {
+        console.log("Server Starting")
         this.discord.setStatus('idle')
 
         this.noPlayersOnTimeAgo = false;
         this.stopAll = false;
 
-        console.log("Server Starting")
-
         //create server child process
-
         this.mcServerProcess = spawn(`java`,
             [`-Xmx${globalVars.mcMemoryMax}`, `-Xms${globalVars.mcMemoryMin}`, "-jar", `server.jar`, "nogui"],
 
@@ -43,51 +41,7 @@ module.exports = (globalVars) => {
             });
 
 
-        this.mcServerProcess.stdout.on('data', (data) => {
-            line = data.toString()
-
-            console.log("M " + line)
-
-            if (this.stringHasAll(line, ["[Server thread/INFO]:", "left the game"])) {
-                this.writeCommand("/list")
-
-            } else if (line.indexOf("[Server thread/INFO]: Done (") != -1) {
-                this.discord.sendMessage(globalVars.roleTag + "The server is up")
-                this.discord.setStatus('online')
-
-                // wait half the time to auto stop then check if anyone has joined
-                if (globalVars.autostopWhenEmpty) {
-                    setTimeout(() => {
-                        this.writeCommand("/list")
-                    }, (globalVars.minTilAutoStopWhenEmpty * 60 * 1000) / 2)
-                }
-
-            } else if (line.indexOf("[Server thread/INFO]: There are") != -1 && globalVars.autostopWhenEmpty) {
-                if (line.split(" ")[5] == 0) {
-                    if (this.noPlayersOnTimeAgo) {
-                        this.writeCommand("/stop")
-                        this.discord.setStatus('idle')
-
-                    } else {
-                        this.discord.sendMessage(`The server is empty, will shut down in ${globalVars.minTilAutoStopWhenEmpty} min`)
-                        this.noPlayersOnTimeAgo = true;
-
-                        setTimeout(() => {
-                            this.writeCommand("/list")
-                        }, globalVars.minTilAutoStopWhenEmpty * 60 * 1000)
-                    }
-                } else {
-                    this.noPlayersOnTimeAgo = false;
-                }
-
-            } else if (this.stringHasAll(line, ["<", ">"])) {
-
-                if (line.split(">")[1].startsWith(" @d ")) {
-                    splitLine = line.split(new RegExp("<|>", "g"))
-                    this.discord.sendMessage("[" + splitLine[1] + "] " + splitLine[2].substring(4))
-                }
-            }
-        });
+        this.mcServerProcess.stdout.on('data', mcLineHandler);
 
         // on error
         this.mcServerProcess.stderr.on('data', (chunk) => {
@@ -108,6 +62,53 @@ module.exports = (globalVars) => {
             }
         });
 
+    }
+
+    let mcLineHandler = (data) => {
+        line = data.toString()
+        console.log("M " + line)
+
+        if (this.stringHasAll(line, ["[Server thread/INFO]:", "left the game"])) {
+            this.writeCommand("/list")
+
+        } else if (line.indexOf("[Server thread/INFO]: There are") != -1) {
+            if (line.split(" ")[5] == 0  && globalVars.autostopWhenEmpty) {
+
+                if (this.noPlayersOnTimeAgo) {
+                    this.writeCommand("/stop")
+                    this.discord.setStatus('idle')
+
+                } else {
+                    this.discord.sendMessage(`The server is empty, will shut down in ${globalVars.minTilAutoStopWhenEmpty} min`)
+                    this.noPlayersOnTimeAgo = true;
+
+                    setTimeout(() => {
+                        this.writeCommand("/list")
+                    }, globalVars.minTilAutoStopWhenEmpty * 60 * 1000)
+                }
+
+            } else {
+                this.noPlayersOnTimeAgo = false;
+            }
+
+        } else if (line.indexOf("[Server thread/INFO]: Done (") != -1) {
+            this.discord.sendMessage((globalVars.roleTag ? globalVars.roleTag + " " : "") + "The server is up")
+            this.discord.setStatus('online')
+
+            // wait half the time to auto stop then check if anyone has joined
+            if (globalVars.autostopWhenEmpty) {
+                setTimeout(() => {
+                    this.writeCommand("/list")
+                }, (globalVars.minTilAutoStopWhenEmpty * 60 * 1000) / 2)
+            }
+
+        }  else if (this.stringHasAll(line, ["<", ">"])) {
+            
+            if (line.split(">")[1].startsWith(" @d ")) {
+                splitLine = line.split(new RegExp("<|>", "g"))
+                this.discord.sendMessage("[" + splitLine[1] + "] " + splitLine[2].substring(4))
+            }
+        }
     }
 
     return this;

@@ -34,22 +34,18 @@ module.exports = (globalVars) => {
     }
 
     // create interface to read terminal input
-    this.rl.on('line', (line) => {
+    this.rl.on('line', terminalInputHandler)
+
+    let terminalInputHandler = (line) => {
 
         if (line.startsWith("discord ")) {
 
             if (!this.isEmptyObj(this.discord) && this.discord.isConnected) {
-                
-                this.discord.client.channels.fetch(globalVars.textChannelId).then(channel => {
-                    channel.send(line.substring(8))
-                }).catch(e => {
-                    console.log(e)
-                })
+                this.discord.sendMessage(line.substring(8))
 
             } else {
                 console.log("discord has not connected yet")
             }
-
 
         } else if (!this.isConnected()) {
             console.log("discord or mc has not connected yet")
@@ -61,18 +57,18 @@ module.exports = (globalVars) => {
 
                 this.minecraft.writeCommand("/kick @a Stopped For Emergency Maintenance")
                 this.minecraft.writeCommand("/stop")
-                this.discord.client.user.setStatus('idle')
+                this.discord.setStatus('idle')
 
             } else {
 
-                // set a flag that is checked when the mcServer stops
+                // check if user wants to also stop the bot process
                 if (line.split(" ")[2] == "a") {
                     stopAll = true;
                 }
 
-                // check if the minutes till stop parameter is a number
+                // get minutes till stop parameter
                 minTillStop = line.split(" ")[1]
-                minTillStop = Number.isInteger(Number.parseInt(minTillStop)) ? Number.parseInt(minTillStop) : 3
+                minTillStop = Number.isInteger(Number.parseInt(minTillStop)) ? Number.parseInt(minTillStop) : globalVars.defaultMinTillStop
 
 
                 this.minecraft.writeCommand("/say SERVER STOPPING IN " + minTillStop + " MINUTE" + (minTillStop != 1 ? "S" : ""))
@@ -101,7 +97,7 @@ module.exports = (globalVars) => {
         }
 
 
-    })
+    }
 
     return this;
 }

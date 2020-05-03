@@ -24,9 +24,7 @@ module.exports = (globalVars) => {
 
     this.client.on('ready', () => {
         this.setStatus('dnd')
-
         this.isConnected = true;
-        
         console.log(`Logged in as ${this.client.user.tag}!`);
 
         if (globalVars.autostartMinecraftServer) {
@@ -88,6 +86,7 @@ module.exports = (globalVars) => {
                 .then(channel => {
     
                     if (channel == null) {
+    
                         // wait and try again
                         setTimeout(() => {
                             iteration++;
